@@ -1,0 +1,109 @@
+#!/bin/bash
+
+redshift -p > /tmp/redshift.conf
+
+# Download the geoclue location form Mozilla.
+if [ ! -f /tmp/geoclue ]; then
+	wget -c -O /tmp/geoclue https://location.services.mozilla.com/v1/geolocate?key=geoclue
+fi
+
+# Grab the latitude and longitude.
+current_lat=$(cat /tmp/geoclue | awk -F': ' '{print substr($3, 0, length($3)-7)}')
+current_lng=$(cat /tmp/geoclue | awk -F': ' '{print substr($4, 0, length($3)-4)}')
+
+export txt="
+<span foreground='yellow'><b>Current Settings</b></span>
+
+`cat /tmp/redshift.conf`
+Latitude: $current_lat
+Longitude: $current_lng
+"
+
+if ls .config | grep redshift.conf; then
+
+	# If the file exist then show the current settings.
+	day_temp=$(cat .config/redshift.conf | awk -F"=" 'NR==2 {print $2}')
+	nigt_temp=$(cat .config/redshift.conf | awk -F"=" 'NR==3 {print $2}')
+
+	auto_location=$(cat .config/redshift.conf | awk -F"=" 'NR==4 {print $2}') # This does not return a true/false.
+
+	if [ "$auto_location" == "geoclue2" ]; then
+		auto_location=true
+	elif [ "$auto_location" == "manual" ]; then
+		auto_location=false
+	fi
+
+	gamma_day=$(cat .config/redshift.conf | awk -F"=" 'NR==5 {print $2}')
+	gamma_night=$(cat .config/redshift.conf | awk -F"=" 'NR==6 {print $2}')
+
+	smooth_transition=$(cat .config/redshift.conf | awk -F"=" 'NR==7 {print $2}') # This returns a 1 or 0.
+
+	if [ "$smooth_transition" == "1" ]; then
+		smooth_transition=true
+	elif [ "$smooth_transition" == "0" ]; then
+		smooth_transition=false
+	fi
+
+fi
+
+yad \
+--mouse \
+--title="Nightlight Configition" \
+--form \
+--borders=12 \
+--separator="," \
+--item-separator="," \
+--window-icon=redshift \
+--skip-taskbar \
+--undecorated \
+--text="$txt" \
+--text-align=center \
+--field="Day Temp:NUM" "$day_temp",3500..7000,1,0 \
+--field="Day Gamma:NUM" "$gamma_day",0.1..1.0,0.1,1 \
+--field="Auto Location:CHK" "$auto_location" \
+--field="Night Temp:NUM" "$nigt_temp",3500..7000,1,0 \
+--field="Night Gamma:NUM" "$gamma_night",0.1..1.0,0.1,1 \
+--field="Smooth Transition:CHK" "$smooth_transition" \
+--buttons-layout=edge \
+--button=gtk-cancel:1 \
+--button=gtk-apply:0 | while read line; do
+
+day_temp=`echo $line | awk -F',' '{print $1}'`		# Set using the Kelvin scan.
+day_gamma=`echo $line | awk -F',' '{print $2}'`
+
+location_provider=`echo $line | awk -F',' '{print $3}'`	# Convert this to location type.
+
+if [ "$location_provider" == "TRUE" ] || [ "$location_provider" == "true" ]; then
+	location_provider=geoclue2
+elif [ "$location_provider" == "FALSE" ] || [ "$location_provider" == "false" ]; then
+	location_provider=manual
+fi
+
+night_temp=`echo $line | awk -F',' '{print $4}'`	# Set using the Kelvin scan.
+night_gamma=`echo $line | awk -F',' '{print $5}'`
+
+transition=`echo $line | awk -F',' '{print $6}'`	# Convert this to location type.
+
+if [ "$transition" == "TRUE" ] || [ "$transition" == "true" ]; then
+	transition="1"
+elif [ "$transition" == "FALSE" ] || [ "$transition" == "false" ]; then
+	transition="0"
+fi
+
+cat <<EOF > .config/redshift.conf
+[redshift]
+temp-day=$day_temp
+temp-night=$night_temp
+location-provider=$location_provider
+gamma-day=$day_gamma
+gamma-night=$night_gamma
+transition=$transition
+
+[manual]
+lat=$current_lat
+lon=$current_lng
+EOF
+
+kill `pgrep redshift` && redshift
+
+done
