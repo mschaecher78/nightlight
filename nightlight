@@ -1,22 +1,20 @@
 #!/bin/bash
 
-redshift -p > /tmp/redshift.conf
-
 # Download the geoclue location form Mozilla.
-if [ ! -f /tmp/geoclue ]; then
-	wget -c -O /tmp/geoclue https://location.services.mozilla.com/v1/geolocate?key=geoclue
-fi
+if [ ! -f .geoclue ]; then
+	wget -c -O .geoclue.tmp https://location.services.mozilla.com/v1/geolocate?key=geoclue
 
-# Grab the latitude and longitude.
-current_lat=$(cat /tmp/geoclue | awk -F': ' '{print substr($3, 0, length($3)-7)}')
-current_lng=$(cat /tmp/geoclue | awk -F': ' '{print substr($4, 0, length($3)-4)}')
+	echo "Latitude: `cat .geoclue.tmp | awk -F': ' '{print substr($3, 0, length($3)-7)}'`" > .geoclue
+	echo "Longitude: `cat .geoclue.tmp | awk -F': ' '{print substr($4, 0, length($3)-5)}'`" >> .geoclue
+
+	rm -f .geoclue.tmp
+fi
 
 export txt="
 <span foreground='yellow'><b>Current Settings</b></span>
 
-`cat /tmp/redshift.conf`
-Latitude: $current_lat
-Longitude: $current_lng
+`redshift -p`
+`cat .geoclue`
 "
 
 if ls .config | grep redshift.conf; then
@@ -89,6 +87,9 @@ if [ "$transition" == "TRUE" ] || [ "$transition" == "true" ]; then
 elif [ "$transition" == "FALSE" ] || [ "$transition" == "false" ]; then
 	transition="0"
 fi
+
+current_lat=$(cat .geoclue | awk -F': ' 'NR==1 {print $2}')
+current_lng=$(cat .geoclue | awk -F': ' 'NR==2 {print $2}')
 
 cat <<EOF > .config/redshift.conf
 [redshift]
