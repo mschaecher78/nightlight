@@ -1,11 +1,21 @@
---------------------------------------> Nightlight <--------------------------------------
+# >>> Nightlight <<<
 
-A one day project of me when I was wanting to have an easier, lazier way to adjust Redshift
-setting without the need of a text editor. Use your package manager to or software mager to
-install yad for this scripts GUI dialog.
+A simple bash script to provide a GUI for redshift backend using yad (a better gtk dialog).
+Shifting the display to red at night helps with eye strain. It is a must for people to do.
+Though some Linux based distributions have a night mode builtin, must do not and rely on
+redshift to handle this function. The problem with the app is that it need's a GUI to be 
+useful and the GUI frontend does not have many customizable options.
 
-I personal like Synaptic Package Manager.
+There few frontend option for redshift.
 
-	SETUP
-	Open up a terminal and run the setup.sh if you wish to install
-	the script globally.
+Since this script relies on yad in order to function. Use your package manager to install.
+
+TODO
+- [ ] Add option to manual set location.
+- [x] Show current setting as default.
+- [x] Display `redshift -p` info.
+- [x] Check if redshift.conf exists.
+- [ ] Set redshift to run config nightlight.conf.
+- [ ] Clean up main script, it is a miss.
+- [ ] Use make to install/build package. Need to be consistent with
+      my style of coding.
