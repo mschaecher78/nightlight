@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+# Install directly to system.
+if ! cp -fv ${SCR}/nightlight ${BIN}/nightlight ; then
+	echo "Error: failed to copy ${SCR}/nightlight"
+	exit 1
+else
+	# Give simple feed back of what is going on
+	echo "Installing configation file."
+
+fi
