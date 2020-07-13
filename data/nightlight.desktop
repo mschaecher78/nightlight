@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Redshift Configuration
+GenericName=Nightlight Settings
+Comment=Yad based color temperature adjustment tool for redshift
+Exec=/home/michael/Projects/source/nightlight/scr/redshift-config
+Icon=redshift
+Terminal=false
+Type=Application
+Categories=System
+StartupNotify=true

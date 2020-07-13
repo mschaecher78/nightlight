@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# Redshift Configuration, a yad base script for redshift backend.
+# Copyright (C) 2020 Michael L. Schaecher
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+set -e
+
+# Yad has a tendency to move outside for the script, so it is
+# best to export all variables.
+export dir="/home/$(users)/.config"
+export conf="${dir}/redshift.conf"
+
+hours=$(cat data/hours)		# This file contains the hours of the day (12hr am/pm format).
+minutes=$(cat data/minutes)	# Pretty much what it states.
+
+# Set the day temp.
+export temp_day=$(cat ${conf} | grep "temp-day=" | awk -F'=' '{print $2'})
+if [ ! ${temp_day} ] ; then export temp_day="6500" ; fi
+
+# Set daytime brightness to full if not set.
+export brightness_day=$(cat ${conf} | grep "brightness-day=" | awk -F'=' '{print $2'})
+if [ ! ${brightness_day} ] ; then export brightness_day="1.0" ; fi
+
+# Adjust the gamma across all i.e. (R:G;B).
+export gamma_day=$(cat ${conf} | grep "gamma-day=" | awk -F'=' '{print $2'})
+if [ ! ${gamma_day} ] ; then gamma_day="1.0" ; fi
+
+# The following is going to be tricky and the setting to the time needs to be
+# spilt into multiple variables in order to function.
+get_dawn_time=$(cat ${conf} | grep "dawn-time=" | awk -F'=' '{print $2'})
+
+set_dawn_hours=$(echo "${get_dawn_time}" | awk -F':' '{print $1}')
+
+if [ ! ${set_dawn_hours} ] ; then export set_dawn_hours="8" ; fi
+# AM/PM Has to be set here and convert 24 UTC to 12 stander.
+if [ "${set_dawn_hours}" -gt "12" ] ; then
+	export dawn_am="true"	# Set checkbox to true for pm.
+	let a=${set_dawn_hours}-12
+elif [ "${set_dawn_hours}" -lt "12" ] ; then
+	export dawn_am="false"	#Set checkbox to false for am.
+	a="${set_dawn_hours}"
+fi
+
+# Just in case the UTC time is stander then don't add the '0' before the hour.
+# I.E. 9 = 09. This only applies to the am hours.
+if [ "0${a}" == "${set_dawn_hours}" ] ; then a="${a}" ; else a="0${a}" ; fi
+# Determine the current dawn-time that redshift is set to go to daylight hours.
+s="^${a}" && t="${a}" && [ "${hours%$t*}" != "$hours" ] && export set_dawn_hours="${hours%$t*}$s${hours#*$t}"
+
+# Okay now grab the minutes for the daytime and since the dawn-time was
+# already set use that. No need to double up variables.
+export dawn_time_minutes=$(echo "${dawn_time}" | awk -F':' '{print $2}')
+if [ ! ${dawn_time_minutes} ] ; then export dawn_time_minutes="0" ; fi
+echo "minute: ${dawn_time_minutes}"
+# AM/PM Has to be set 
+# Set the night temp.
+export temp_night=$(cat ${conf} | grep "temp-night=" | awk -F'=' '{print $2'})
+if [ ! ${temp_night} ] ; then temp_night="4500" ; fi
+echo "${temp_night}"
+# Set transition, though this maybe set as fade which is older and still in the
+# manpage. If fade is used then read that as well.
+export transition=$(cat ${conf} | grep "transition=" | awk -F'=' '{print $2}')
+if [ ! ${transition} ] ; then
+	export transition=$(cat ${conf} | grep "fade=" | awk -F'=' '{print $2}')
+fi
+# A true or false is needed for yad.
+if [ "${transition}" == "1" ] ; then export transition="true"
+elif [ "${transition}" == "0" ] ; then export transition="false" ; fi
+echo "${transition}"
+# Set nighttime brightness to full if not set.
+export brightness_night=$(cat ${conf} | grep "brightness-night=" | awk -F'=' '{print $2'})
+if [ ! ${brightness_night} ] ; then brightness_night="1.0" ; fi
+echo "${brightness_night}"
+# Nighttime gamma.
+export gamma_night=$(cat ${conf} | grep "gamma-night=" | awk -F'=' '{print $2'})
+if [ ! ${gamma_night} ] ; then gamma_night="1.0" ; fi
+echo "${gamma_night}"
+export location_provider=$(cat ${conf} | grep "location_provider=" | awk -F'=' '{print $2'})
+if [ ! ${location_provider} ] ; then location_provider="manual" ; fi
+
+export txt="<span foreground='yellow'><b>Current Settings</b></span>
+$(redshift -p)
+
+<span foreground='yellow' font='12'><b>Daytime                        Nighttime</b></span>"
+
+# Display everything that can be set.
+yad --image=redshift --center --title="Redshift Configuration" --form --columns=2 \
+--borders=12 --separator="," --item-separator="," --window-icon=redshift --text="$txt" \
+--text-align=center \
+--field="Temp:num" \
+--field="Brightness:num" \
+--field="Gamma:num" \
+--field="Hour:cb" \
+--field="Minutes:cbe" \
+--field=" PM:chk" \
+--buttons-layout=edge --button=gtk-close:1 --button=gtk-ok:0 \
+"${temp_day},3500..7000,1,0" "${brightness_day},0.1..1.0,0.1,1" \
+"${gamma_day},0.1..1.0,0.1,1" "${set_dawn_hours}" \
+"^${dawn_time_minutes}/$(cat data/minutes)" "${dawn_am}"
